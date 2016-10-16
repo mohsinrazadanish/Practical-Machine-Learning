@@ -1,0 +1,158 @@
+---
+title: "Human Activity Recognition using Random Forest Algorithm"
+author: "Muhammad Mohsin Raza Danish"
+date: "Sunday, 16 October 2016"
+output: html_document
+---
+  
+## Summary
+  
+This assignment is about the machine learning applied to a dataset from [Human Activity Recognition](http://groupware.les.inf.puc-rio.br/har).
+
+The HAR dataset contains accelerometer data collected from sensors on the belt, forearm, arm, and dumbell from 6 subjects that were asked to perform barbell lifts correctly and incorrectly in 5 different ways (sitting-down, standing-up, standing, walking, and sitting).
+
+A random forest model was built with 250 trees using 5-fold cross-validation.
+and achieved an accuracy on the validation data of 99.47% with an out of sample error of 0.53%.
+
+On the testing dataset, 20 cases were predicted with 100% accuracy.
+
+## Load Data
+
+Training & testing datasets are loaded from [Groupware@LES Human Activity Recognition](http://groupware.les.inf.puc-rio.br/har).
+
+```{r, cache=TRUE}
+
+training <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv")
+testing <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv")
+
+```
+
+## Explore data
+
+```{r}
+dim.trn <- dim(training)
+dim.tst <- dim(testing)
+```
+
+The training data set contains `r dim.trn[1]` observations and `r dim.tst[2]` variables and the test data set contains `r dim.tst[1]` observations and `r dim.tst[2]` variables.
+
+The response variable is called `classe` and consists of 5 factors, A-E representing these activities: sitting-down, standing-up, standing, walking, and sitting.
+
+The summary of the `classe` response for the training dataset is as follows.
+
+```{r}
+summary(training$classe)
+```
+
+## Preprocess Data
+
+```{r, include=FALSE}
+library(caret)
+library(randomForest)
+library(doMC)
+```
+
+### Remove varables with NA's
+  
+We start with getting rid of the columns with NA's:
+
+```{r, cache=TRUE}
+sum(complete.cases(training))
+training.2 <- training[, colSums(is.na(training)) == 0]
+dim(training.2)
+```
+
+### Remove variables with near zero variance
+
+Then, we remove the columns with zero or near zero variance.
+
+```{r, cache=TRUE}
+nzv <- nearZeroVar(training.2, saveMetrics=TRUE)
+training.3 <- training.2[, nzv[,"nzv"] == FALSE]
+dim(training.3)
+```
+
+### Remove non-accelerator columns
+
+There are a few non-accelerator variables we can also remove, such as timestamp, user, window etc.
+
+```{r, cache=TRUE}
+training.4 <- training.3[, -grep("timestamp|user_name|new_window|num_window|X", names(training.3))]
+dim.trn4 <- dim(training.4)
+```
+
+The reduced training dataset now contains `r dim.trn4[1]` observations and `r dim.trn4[2]` variables.
+
+## Data Model
+
+Next, we fit a random forest model with 5-fold cross validation for a good bias-variance trade-off. The cleaned training dataset is split 80/20 into a training & validation dataset.
+
+```{r, cache=TRUE}
+set.seed(224)
+inTrain <- createDataPartition(training.4$classe, p=0.8, list=FALSE)
+training.data <- training.4[inTrain,]
+validation.data <- training.4[-inTrain, ]
+
+# Use multiple cores for parallel processing
+num.cores <- detectCores()
+registerDoMC(cores = num.cores - 1)
+
+model.RF <- train(classe ~ .,
+                 data=training.data, method="rf",
+                 trControl=trainControl(method="cv", number=5),
+                 prox=TRUE,
+                 allowParallel=TRUE,
+                 ntree=250)
+model.RF
+
+```
+
+### Estimated accuracy & out of sample error of the model
+
+The model is tested on the validation dataset:
+  
+```{r}
+predict.RF <- predict(model.RF, validation.data)
+confusionMatrix(validation.data$classe, predict.RF)
+```
+
+The out of sample error should be low as the random forest algorithm performs cross-validation internally.
+
+```{r}
+out.of.sample.error <- sum(predict.RF != validation.data$classe) * 100 / nrow(validation.data)
+```
+
+The estimated accuracy of the model on the validation dataset is `r round(confusionMatrix(validation.data$classe, predict.RF)$overall[1]*100, 2)`% and the estimated out of sample error is `r round(out.of.sample.error, 2)`%.
+
+See the appendix for plots of predictor importance, model accuracy for selected predictors and the error rate for the number of trees in the random forest.
+
+## Predition result on the testing dataset
+
+The result of applying the testing dataset on the model:
+  
+```{r}
+# ind.col <- which(names(testing) %in% names(training.4))
+# ind.col
+test.data <- testing[, names(testing) %in% names(training.4)]
+predict.RF.Test <- predict(model.RF, newdata=test.data)
+predict.RF.Test
+```
+
+## Conclusion
+
+The selected random forest model was able to predict **100%** of the 20 cases provided in the testing dataset.
+
+## Appendix
+
+```{r}
+vi <- varImp(model.RF)
+plot(vi, main = "Top 20 most influencial predictors", top = 20)
+```
+
+```{r}
+plot(model.RF, main="Model accuracy by predictors")
+```
+
+```{r}
+plot(model.RF$finalModel, main="Model error rate by number of trees")
+```
