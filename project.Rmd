@@ -11,10 +11,9 @@ This assignment is about the machine learning applied to a dataset from [Human A
 
 The HAR dataset contains accelerometer data collected from sensors on the belt, forearm, arm, and dumbell from 6 subjects that were asked to perform barbell lifts correctly and incorrectly in 5 different ways (sitting-down, standing-up, standing, walking, and sitting).
 
-A random forest model was built with 250 trees using 5-fold cross-validation.
-and achieved an accuracy on the validation data of 99.47% with an out of sample error of 0.53%.
+A random forest model was built with 300 trees using 5-fold cross-validation.
+and achieved an accuracy on the validation data of 99.36% with an out of sample error of 0.64%.
 
-On the testing dataset, 20 cases were predicted with 100% accuracy.
 
 ## Load Data
 
@@ -36,7 +35,14 @@ dim.tst <- dim(testing)
 
 The training data set contains `r dim.trn[1]` observations and `r dim.tst[2]` variables and the test data set contains `r dim.tst[1]` observations and `r dim.tst[2]` variables.
 
-The response variable is called `classe` and consists of 5 factors, A-E representing these activities: sitting-down, standing-up, standing, walking, and sitting.
+The response variable is called `classe` and consists of 5 factors.
+
+A-E represent these activities: 
+- sitting-down
+- standing-up
+- standing
+- walking
+- sitting
 
 The summary of the `classe` response for the training dataset is as follows.
 
@@ -88,7 +94,7 @@ The reduced training dataset now contains `r dim.trn4[1]` observations and `r di
 Next, we fit a random forest model with 5-fold cross validation for a good bias-variance trade-off. The cleaned training dataset is split 80/20 into a training & validation dataset.
 
 ```{r, cache=TRUE}
-set.seed(224)
+set.seed(1122)
 inTrain <- createDataPartition(training.4$classe, p=0.8, list=FALSE)
 training.data <- training.4[inTrain,]
 validation.data <- training.4[-inTrain, ]
@@ -102,7 +108,7 @@ model.RF <- train(classe ~ .,
                  trControl=trainControl(method="cv", number=5),
                  prox=TRUE,
                  allowParallel=TRUE,
-                 ntree=250)
+                 ntree=300)
 model.RF
 
 ```
@@ -140,7 +146,7 @@ predict.RF.Test
 
 ## Conclusion
 
-The selected random forest model was able to predict **100%** of the 20 cases provided in the testing dataset.
+I ran the training algorithm for several number of trees. I find that the accuracy was varying slightly for different number of trees. Similar accuracy can also be achieved with less number of trees. The current setting gives a good model and in general, we can tune the paramters such as the number of trees to get the desired accuracy.
 
 ## Appendix
 
@@ -150,7 +156,7 @@ plot(vi, main = "Top 20 most influencial predictors", top = 20)
 ```
 
 ```{r}
-plot(model.RF, main="Model accuracy by predictors")
+plot(model.RF, main="Model accuracy by number of predictors")
 ```
 
 ```{r}
